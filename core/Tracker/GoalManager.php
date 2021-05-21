@@ -356,7 +356,12 @@ class GoalManager
 
             $conversion['idorder'] = $orderId;
             $conversion['idgoal']  = self::IDGOAL_ORDER;
-            $conversion['buster']  = Common::hashStringToInt($orderId);
+            $rawParams = $request->getRawParams();
+            if (array_key_exists('rand', $rawParams) && $this->isUuidv4($rawParams['rand'])) {
+                $conversion['buster'] = base_convert(substr($rawParams['rand'], 0, 8), 16, 10);
+            } else {
+                $conversion['buster']  = Common::hashStringToInt($orderId);
+            }
 
             $conversionDimensions = ConversionDimension::getAllDimensions();
             $conversion = $this->triggerHookOnDimensions($request, $conversionDimensions, 'onEcommerceOrderConversion', $visitor, $action, $conversion);
@@ -727,11 +732,16 @@ class GoalManager
             if ($convertedGoal['allow_multiple'] == 0) {
                 $conversion['buster'] = 0;
             } else {
-                $lastActionTime = $visitProperties->getProperty('visit_last_action_time');
-                if (empty($lastActionTime)) {
-                    $conversion['buster'] = $this->makeRandomMySqlUnsignedInt(10);
+                $rawParams = $request->getRawParams();
+                if (array_key_exists('rand', $rawParams) && $this->isUuidv4($rawParams['rand'])) {
+                    $conversion['buster'] = base_convert(substr($rawParams['rand'], 0, 8), 16, 10);
                 } else {
-                    $conversion['buster'] = $this->makeRandomMySqlUnsignedInt(2) . Common::mb_substr($visitProperties->getProperty('visit_last_action_time'), 2);
+                    $lastActionTime = $visitProperties->getProperty('visit_last_action_time');
+                    if (empty($lastActionTime)) {
+                        $conversion['buster'] = $this->makeRandomMySqlUnsignedInt(10);
+                    } else {
+                        $conversion['buster'] = $this->makeRandomMySqlUnsignedInt(2) . Common::mb_substr($visitProperties->getProperty('visit_last_action_time'), 2);
+                    }
                 }
             }
 
@@ -741,7 +751,14 @@ class GoalManager
             $this->insertNewConversion($conversion, $visitProperties->getProperties(), $request, $action, $convertedGoal);
         }
     }
-    
+
+    private function isUuidv4($value) {
+        if (!is_string($value) || (preg_match('/^[a-f\d]{8}(-[a-f\d]{4}){4}[a-f\d]{8}$/i', $value) !== 1)) {
+            return false;
+        }
+        return true;
+    }
+
     private function makeRandomMySqlUnsignedInt($length)
     {
         // mysql int unsgined max value is 4294967295 so we want to allow max 39999...
