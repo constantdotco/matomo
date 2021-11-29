@@ -268,7 +268,7 @@ class HttpTest extends \PHPUnit\Framework\TestCase
     }
 
     /**
-     * erroe message can be:
+     * error message can be:
      *      curl_exec: server certificate verification failed. CAfile: /home/travis/build/piwik/piwik/core/DataFiles/cacert.pem CRLfile: none. Hostname requested was: self-signed.badssl.com
      * or
      *      curl_exec: SSL certificate problem: self signed certificate. Hostname requested was: self-signed.badssl.com
@@ -276,7 +276,7 @@ class HttpTest extends \PHPUnit\Framework\TestCase
     public function testCurlHttpsFailsWithInvalidCertificate()
     {
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessageRegExp('/curl_exec: .*certificate.* /');
+        $this->expectExceptionMessageMatches('/curl_exec: .*certificate.* /');
 
         // use a domain from https://badssl.com/
         Http::sendHttpRequestBy('curl', 'https://self-signed.badssl.com/', 10);
@@ -304,7 +304,7 @@ class HttpTest extends \PHPUnit\Framework\TestCase
     {
         $result = Http::sendHttpRequestBy(
             $method,
-            'https://tools.ietf.org/html/rfc7233',
+            'https://builds.matomo.org/matomo.zip',
             300,
             null,
             null,
@@ -317,9 +317,46 @@ class HttpTest extends \PHPUnit\Framework\TestCase
         /**
          * The last arg above asked the server to limit the response sent back to bytes 0->50.
          * The RFC for HTTP Range Requests says that these headers can be ignored, so the test
-         * depends on a server that will respect it - we are requesting the RFC itself, which does.
+         * depends on a server that will respect it - we are requesting our build download, which does.
          */
         $this->assertEquals(51, strlen($result));
+    }
+
+    /**
+     * @dataProvider getRedirectUrls
+     */
+    public function test_redirects($url, $method, $isValid, $message)
+    {
+        if ($isValid === false) {
+            $this->expectException(\Exception::class);
+            $this->expectExceptionMessageMatches($message);
+        }
+
+        $response = Http::sendHttpRequestBy($method, $url, 1000);
+
+        if ($isValid !== false) {
+            $this->assertEquals($message, $response);
+        }
+    }
+
+    public function getRedirectUrls()
+    {
+        return [
+            // check 5 redirects are working
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=5', 'curl', true, Fixture::getRootUrl().'tests/resources/redirector.php?redirects=0'],
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=5', 'socket', true, Fixture::getRootUrl().'tests/resources/redirector.php?redirects=0'],
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=4', 'fopen', true, Fixture::getRootUrl().'tests/resources/redirector.php?redirects=0'],
+
+            // more than 5 redirects should fail
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=6', 'curl', false, '/curl_exec: Maximum \(5\) redirects followed./'],
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=6', 'socket', false, '/Too many redirects/'],
+            [Fixture::getRootUrl().'tests/resources/redirector.php?redirects=6', 'fopen', true, ''],
+
+            // Redirect to disallowed protocol shouldn't be possible
+            [Fixture::getRootUrl().'tests/resources/redirector.php?target='.urlencode('ftps://my.local'), 'curl', false, '/curl_exec: Protocol "ftps" not supported or disabled in libcurl/'],
+            [Fixture::getRootUrl().'tests/resources/redirector.php?target='.urlencode('ftps://my.local'), 'socket', false, '/Protocol ftps not in list of allowed protocols/'],
+            //[Fixture::getRootUrl().'tests/resources/redirector.php?target='.urlencode('ftps://my.local'), 'fopen', false, ''],
+        ];
     }
 
     public function test_http_postsEvent()

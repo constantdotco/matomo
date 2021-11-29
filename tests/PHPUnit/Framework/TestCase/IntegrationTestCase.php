@@ -85,7 +85,7 @@ abstract class IntegrationTestCase extends SystemTestCase
         Fixture::loadAllPlugins(new TestingEnvironmentVariables(), get_class($this), self::$fixture->extraPluginsToLoad);
 
         Access::getInstance()->setSuperUserAccess(true);
-        
+
         if (!empty(self::$tableData)) {
             self::restoreDbTables(self::$tableData);
         }
@@ -100,7 +100,7 @@ abstract class IntegrationTestCase extends SystemTestCase
      */
     public function tearDown(): void
     {
-        static::$fixture->clearInMemoryCaches();
+        Fixture::clearInMemoryCaches();
         static::$fixture->destroyEnvironment();
 
         parent::tearDown();
