@@ -39,6 +39,7 @@
         "CustomDimensionId": "Custom Dimensions (Id %d)",
         "NoValue": "no value",
         "PluginDescription": "Extend Matomo to your needs by defining and tracking Custom Dimensions in scope Action or Visit",
-        "EmptyValue": "empty value"
+        "EmptyValue": "empty value",
+        "CustomReport": "Custom Report"
     }
 }

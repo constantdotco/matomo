@@ -1,3 +1,6 @@
 {
- "name": "CustomDimensions"
+ "name": "CustomDimensions",
+ "require": {
+  "matomo": ">=4.2.1-stable,<5.0.0-b1"
+ }
 }

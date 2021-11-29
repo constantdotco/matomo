@@ -293,5 +293,55 @@ class API extends \Piwik\Plugin\API
         return new Configuration();
     }
 
-}
+    /**
+     * Another example method that returns a data table.
+     * @param int    $idSite
+     * @param string $period
+     * @param string $date
+     * @param bool|string $segment
+     * @return DataTable
+     */
 
+    public function getCustomReport($idSite, $period, $date, $segment = false)
+    {
+
+        $table  = \Piwik\API\Request::processRequest('Live.getLastVisitsDetails', [
+            'idSite'                 => $idSite,
+            'period'                 => $period,
+            'date'                   => $date,
+        ]);
+
+        $rowsData=[];
+        foreach($table->getRows() as $rows ){
+
+            $recipeid = '';
+            foreach($rows->getColumn('actionDetails') as $actionDetails){
+
+                if(isset($actionDetails['url'])){
+                    $parts = parse_url($actionDetails['url']);
+                    parse_str($parts['query'], $query);
+                    $recipeid = $query['ccr'];
+                }
+
+                if(isset($actionDetails['revenue'])){
+                    $rowsData[]=[
+                        'recipeid' => $recipeid,
+                        'visitServerHour'=>$rows->getColumn('visitCount') ,
+                        'idSite'=>$rows->getColumn('idSite') ,
+                        'totalAbandonedCartsItems'=> $actionDetails['items'],
+                        'totalAbandonedCartsRevenue' => "$".$actionDetails['revenue']
+                    ];
+                }
+
+
+
+            }
+
+        }
+        // echo "<pre>";
+        // print_r($table);die;
+        $table = DataTable::makeFromSimpleArray($rowsData);
+        return $table;
+    }
+
+}
